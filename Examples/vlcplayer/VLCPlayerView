@@ -1,0 +1,399 @@
+/**
+ * Created by yuanzhou.xu on 2018/5/14.
+ */
+import React, { Component } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Dimensions,
+  TouchableOpacity,
+  ActivityIndicator,
+  StatusBar,
+} from 'react-native';
+import VLCPlayer from 'react-native-vlcplayer';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Orientation from 'react-native-orientation';
+import Slider from 'react-native-slider';
+import PropTypes from 'prop-types';
+
+export default class VLCPlayerView extends Component {
+  static propTypes = {
+    uri: PropTypes.string,
+  };
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      paused: false,
+      isLoading: true,
+      isFull: false,
+      currentTime: 0.0,
+      totalTime: 0.0,
+      showControls: false,
+      seek: 0,
+    };
+    this.touchTime = 0;
+  }
+
+  static defaultProps = {
+    initPaused: false,
+    source: null,
+    seek: 0,
+    playInBackground: false,
+    isGG: false,
+  };
+
+  render() {
+    let { onEnd, style, isGG } = this.props;
+    let { isFull, isLoading } = this.state;
+    return (
+      <View style={[styles.container, style]}>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[styles.videoBtn, isFull ? { height: '100%' } : {}]}
+          onPressOut={() => {
+            let currentTime = new Date().getTime();
+            if (this.touchTime === 0) {
+              this.touchTime = currentTime;
+              this.setState({ showControls: !this.state.showControls });
+            } else {
+              if (currentTime - this.touchTime >= 500) {
+                this.touchTime = currentTime;
+                this.setState({ showControls: !this.state.showControls });
+              }
+            }
+          }}>
+          <VLCPlayer
+            ref={ref => (this.vlcPlayer = ref)}
+            paused={this.state.paused}
+            seek={this.state.seek}
+            style={[styles.video]}
+            source={{ uri: this.props.uri, initOptions: ['--codec=avcodec'], autoplay: true }}
+            onProgress={this.onProgress.bind(this)}
+            onEnded={this.onEnded.bind(this)}
+            onStopped={this.onEnded.bind(this)}
+            onPlaying={this.onPlaying.bind(this)}
+            onBuffering={this.onBuffering.bind(this)}
+            onPaused={this.onPaused.bind(this)}
+            onError={this._onError}
+          />
+          {false && (
+            <View style={styles.loading}>
+              <ActivityIndicator size={'large'} animating={true} color="#fff" />
+            </View>
+          )}
+          {this._renderControl()}
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  componentWillUnmount() {
+  }
+
+  pause() {
+    this.setState({ paused: !this.state.paused });
+  }
+
+  onPlaying(event) {
+    this.setState({ loadingColor: 'rgba(255,255,255,0)' });
+    this.setState({ playButtonColor: 'rgba(255,255,255,0)' });
+  }
+
+  onPaused(event) {
+    this.setState({ loadingColor: 'rgba(255,255,255,0)' });
+    this.setState({ playButtonColor: 'rgba(255,255,255,1)' });
+  }
+
+  onBuffering(event) {
+    console.log(event);
+    this.setState({ playButtonColor: 'rgba(255,255,255,0)' });
+    this.setState({ loadingColor: 'rgba(255,255,255,1)' });
+  }
+
+  _onError = e => {
+    console.log(e);
+  };
+
+  _renderControl = () => {
+    let { paused, isFull, volume } = this.state;
+    if (this.state.showControls) {
+      return (
+        <View style={styles.controls}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.volumeControl}
+            onPress={() => {
+              if (volume > 0) {
+                this.setState({ volume: 0 });
+              } else {
+                this.setState({ volume: 1 });
+              }
+            }}>
+            <Icon name={volume > 0 ? 'volume-high' : 'volume-off'} size={30} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.controlContainer}>
+            <TouchableOpacity style={styles.controlContent} activeOpacity={1}>
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={this._play}
+                style={{ width: 50, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={paused ? 'play' : 'pause'} size={25} color="#fff" />
+              </TouchableOpacity>
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'space-around',
+                }}>
+                <Text
+                  style={{
+                    width: 50,
+                    fontSize: 11,
+                    color: '#fff',
+                    textAlign: 'center',
+                  }}>
+                  {this._getTime(this.state.currentTime) || 0}
+                </Text>
+                <View style={styles.progress}>
+                  <Slider
+                    minimumTrackTintColor="#30a935"
+                    thumbStyle={styles.thumb}
+                    style={{ width: '100%' }}
+                    value={this.state.currentTime}
+                    maximumValue={this.state.totalTime}
+                    step={1}
+                    onValueChange={value => {
+                      this.changingSlider = true;
+                      this.setState({
+                        currentTime: value,
+                      });
+                    }}
+                    onSlidingComplete={value => {
+                      this.changingSlider = false;
+                      this.vlcPlayer.seek(value / this.state.totalTime);
+                    }}
+                  />
+                </View>
+                <Text
+                  style={{
+                    width: 50,
+                    fontSize: 11,
+                    color: '#fff',
+                    textAlign: 'center',
+                  }}>
+                  {this._getTime(this.state.totalTime) || 0}
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={this._toFullScreen}
+                style={{ width: 50, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={isFull ? 'fullscreen-exit' : 'fullscreen'} size={25} color="#fff" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    } else {
+      return null;
+    }
+  };
+
+  onProgress(event) {
+    console.log(
+      'position=' +
+        event.position +
+        ',currentTime=' +
+        event.currentTime +
+        ',remainingTime=' +
+        event.remainingTime,
+    );
+    if (!this.changingSlider) {
+      this.setState({
+        progress: event.position,
+        currentTime: event.currentTime / 1000,
+        totalTime: Math.max(
+          this.state.totalTime,
+          (Math.abs(event.remainingTime) + event.currentTime) / 1000,
+        ),
+      });
+    }
+  }
+
+  onEnded(event) {
+    console.log(event);
+  }
+
+  _closeFullScreen = () => {
+    Orientation.lockToPortrait();
+    StatusBar.setHidden(false);
+  };
+
+  _toFullScreen = () => {
+    console.log(this.state.isFull)
+    let { isFull } = this.state;
+    let { startFullScreen, closeFullScreen } = this.props;
+    if (isFull) {
+      this._closeFullScreen();
+      this.setState({
+        isFull: false,
+      });
+      closeFullScreen && closeFullScreen();
+    } else {
+      startFullScreen && startFullScreen();
+      Orientation.lockToLandscape && Orientation.lockToLandscape();
+      this.setState({
+        isFull: true,
+      });
+    }
+  };
+
+  _play = () => {
+    this.setState({ paused: !this.state.paused });
+  };
+
+  _getTime = (data = 0) => {
+    let hourCourse = Math.floor(data / 3600);
+    let diffCourse = data % 3600;
+    let minCourse = Math.floor(diffCourse / 60);
+    let secondCourse = Math.floor(diffCourse % 60);
+    let courseReal = '';
+    if (hourCourse) {
+      if (hourCourse < 10) {
+        courseReal += '0' + hourCourse + ':';
+      } else {
+        courseReal += hourCourse + ':';
+      }
+    }
+    if (minCourse < 10) {
+      courseReal += '0' + minCourse + ':';
+    } else {
+      courseReal += minCourse + ':';
+    }
+    if (secondCourse < 10) {
+      courseReal += '0' + secondCourse;
+    } else {
+      courseReal += secondCourse;
+    }
+    return courseReal;
+  };
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    //backgroundColor: '#000',
+  },
+  videoBtn: {
+    height: '33%',
+    backgroundColor: '#000',
+  },
+  video: {
+    backgroundColor: '#000',
+    height: '100%',
+  },
+  controls: {
+    position: 'absolute',
+    backgroundColor: 'transparent',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+  },
+  rateControl: {
+    flex: 0,
+    flexDirection: 'row',
+    marginTop: 10,
+    marginLeft: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 120,
+    height: 30,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  controlOption: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#fff',
+    width: 30,
+    //lineHeight: 12,
+  },
+  controlContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    flex: 0,
+    height: 50,
+    width: '100%',
+    padding: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  controlContent: {
+    flex: 0,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+
+  progress: {
+    width: '50%',
+    flexDirection: 'row',
+    height: 15,
+    borderRadius: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  innerProgressCompleted: {
+    height: 3,
+    backgroundColor: 'green',
+  },
+  innerProgressRemaining: {
+    height: 3,
+    backgroundColor: '#2C2C2C',
+  },
+  thumb: {
+    width: 6,
+    height: 15,
+    backgroundColor: '#fff',
+    borderRadius: 4,
+  },
+  loadingImg: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    zIndex: 0,
+    width: '100%',
+    height: '100%',
+  },
+  loading: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    zIndex: 0,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  GG: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    right: 10,
+    top: 10,
+    zIndex: 0,
+    height: 30,
+    paddingLeft: 10,
+    paddingRight: 10,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
