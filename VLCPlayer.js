@@ -3,8 +3,9 @@ import ReactNative from 'react-native';
 
 const {
   Component,
-  PropTypes,
 } = React;
+
+import PropTypes from 'prop-types';
 
 const {
   StyleSheet,
@@ -12,6 +13,7 @@ const {
   NativeModules,
   View,
 } = ReactNative;
+import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource';
 
 export default class VLCPlayer extends Component {
 
@@ -89,9 +91,20 @@ export default class VLCPlayer extends Component {
   }
 
   render() {
-    const {
+   /* const {
       source
-    } = this.props;
+    } = this.props;*/
+    const source = resolveAssetSource(this.props.source) || {};
+
+    let uri = source.uri || '';
+    if (uri && uri.match(/^\//)) {
+      uri = `file://${uri}`;
+    }
+
+    const isNetwork = !!(uri && uri.match(/^https?:/));
+    const isAsset = !!(uri && uri.match(/^(assets-library|file|content|ms-appx|ms-appdata):/));
+
+
     source.initOptions = source.initOptions || [];
     //repeat the input media
     source.initOptions.push('--input-repeat=1000');
@@ -123,6 +136,14 @@ VLCPlayer.propTypes = {
   snapshotPath: PropTypes.string,
   paused: PropTypes.bool,
 
+  onVideoError: PropTypes.func,
+  onVideoProgress: PropTypes.func,
+  onVideoEnded: PropTypes.func,
+  onVideoPlaying: PropTypes.func,
+  onVideoPaused: PropTypes.func,
+  onVideoStopped: PropTypes.func,
+  onVideoBuffering: PropTypes.func,
+
   /* Wrapper component */
   source: PropTypes.object,
 
@@ -135,11 +156,11 @@ VLCPlayer.propTypes = {
   onProgress: PropTypes.func,
 
   /* Required by react-native */
-  scaleX: React.PropTypes.number,
-  scaleY: React.PropTypes.number,
-  translateX: React.PropTypes.number,
-  translateY: React.PropTypes.number,
-  rotation: React.PropTypes.number,
+  scaleX: PropTypes.number,
+  scaleY: PropTypes.number,
+  translateX: PropTypes.number,
+  translateY: PropTypes.number,
+  rotation: PropTypes.number,
   ...View.propTypes,
 };
 
@@ -148,4 +169,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   }
 });
-const RCTVLCPlayer = requireNativeComponent('RCTVLCPlayer', VLCPlayer);
+const RCTVLCPlayer = requireNativeComponent('RCTVLCPlayer', VLCPlayer,{
+  nativeOnly: {
+      seek: true,
+  },
+});
