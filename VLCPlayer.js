@@ -169,8 +169,4 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   }
 });
-const RCTVLCPlayer = requireNativeComponent('RCTVLCPlayer', VLCPlayer,{
-  nativeOnly: {
-      seek: true,
-  },
-});
+const RCTVLCPlayer = requireNativeComponent('RCTVLCPlayer', VLCPlayer);
