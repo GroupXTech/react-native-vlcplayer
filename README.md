@@ -14,7 +14,7 @@ Run `npm install react-native-vlcplayer --save`
 
 #### iOS
 
-- Install [rnpm](https://github.com/rnpm/rnpm) and run `rnpm link react-native-vlcplayer`
+-  Run `react-native link react-native-vlcplayer`
 
 - 安装`MobileVLCKit.framework`,在[nightlies.videolan.org/build/ios/](nightlies.videolan.org/build/IOS/) 下载最新版，解压后在你的工程里面引入`MobileVLCKit.framework`，并且添加 framework search path （该search path指的是该插件所在的工程）
 - 添加下图所示lib和framework
