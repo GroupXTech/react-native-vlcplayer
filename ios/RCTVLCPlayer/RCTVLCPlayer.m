@@ -1,8 +1,8 @@
-#import "RCTConvert.h"
+#import "React/RCTConvert.h"
 #import "RCTVLCPlayer.h"
-#import "RCTBridgeModule.h"
-#import "RCTEventDispatcher.h"
-#import "UIView+React.h"
+#import "React/RCTBridgeModule.h"
+#import "React/RCTEventDispatcher.h"
+#import "React/UIView+React.h"
 #import <MobileVLCKit/MobileVLCKit.h>
 static NSString *const statusKeyPath = @"status";
 static NSString *const playbackLikelyToKeepUpKeyPath = @"playbackLikelyToKeepUp";
@@ -62,13 +62,13 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setPaused:(BOOL)paused
 {
-    //NSLog(@">>>>paused %i",paused);
     if(_player){
-        if(!_started)
+        if(!paused){
             [self play];
-        else {
+        }else {
             [_player pause];
-            _paused = paused;
+            _paused =  YES;
+            _started = NO;
         }
     }
 }
@@ -93,13 +93,19 @@ static NSString *const playbackRate = @"rate";
     NSURL* _uri    = [NSURL URLWithString:uri];
 
     //init player && play
-    _player = [[VLCMediaPlayer alloc] initWithOptions:options];
+    //_player = [[VLCMediaPlayer alloc] initWithOptions:options];
+    _player = [[VLCMediaPlayer alloc] init];
     [_player setDrawable:self];
     _player.delegate = self;
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(mediaPlayerStateChanged:) name:VLCMediaPlayerStateChanged object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(mediaPlayerTimeChanged:) name:VLCMediaPlayerTimeChanged object:nil];
-    _player.media = [VLCMedia mediaWithURL:_uri];
+    NSMutableDictionary *mediaDictonary = [NSMutableDictionary new];
+    //设置缓存多少毫秒
+    [mediaDictonary setObject:@"300" forKey:@"network-caching"];
+    VLCMedia *media = [VLCMedia mediaWithURL:_uri];
+    [media addOptions:mediaDictonary];
+    _player.media = media;
     if(autoplay)
         [self play];
 }
@@ -111,77 +117,73 @@ static NSString *const playbackRate = @"rate";
 
 - (void)mediaPlayerStateChanged:(NSNotification *)aNotification
 {
-    VLCMediaPlayerState state = _player.state;
-    switch (state) {
-        case VLCMediaPlayerStatePaused:
-            _paused = YES;
-            //NSLog(@"VLCMediaPlayerStatePaused %i",VLCMediaPlayerStatePaused);
-            [_eventDispatcher sendInputEventWithName:@"onVideoPaused"
-                                                body:@{
-                                                       @"target": self.reactTag
-                                                       }];
-            break;
-        case VLCMediaPlayerStateStopped:
-            //NSLog(@"VLCMediaPlayerStateStopped %i",VLCMediaPlayerStateStopped);
-            [_eventDispatcher sendInputEventWithName:@"onVideoStopped"
-                                                body:@{
-                                                       @"target": self.reactTag
-                                                       }];
-            break;
-        case VLCMediaPlayerStateBuffering:
-            //NSLog(@"VLCMediaPlayerStateBuffering %i",VLCMediaPlayerStateBuffering);
-            [_eventDispatcher sendInputEventWithName:@"onVideoBuffering"
-                                                body:@{
-                                                       @"target": self.reactTag
-                                                       }];
-            break;
-        case VLCMediaPlayerStatePlaying:
-            _paused = NO;
-            //NSLog(@"VLCMediaPlayerStatePlaying %i",VLCMediaPlayerStatePlaying);
-            [_eventDispatcher sendInputEventWithName:@"onVideoPlaying"
-                                                body:@{
-                                                       @"target": self.reactTag,
-                                                       @"seekable": [NSNumber numberWithBool:[_player isSeekable]],
-                                                       @"duration":[NSNumber numberWithInt:[_player.media.length intValue]]
-                                                       }];
-            break;
-        case VLCMediaPlayerStateEnded:
-            //NSLog(@"VLCMediaPlayerStateEnded %i",VLCMediaPlayerStateEnded);
-            [_eventDispatcher sendInputEventWithName:@"onVideoEnded"
-                                                body:@{
-                                                       @"target": self.reactTag
-                                                       }];
-            break;
-        case VLCMediaPlayerStateError:
-            //NSLog(@"VLCMediaPlayerStateError %i",VLCMediaPlayerStateError);
-            [_eventDispatcher sendInputEventWithName:@"onVideoError"
-                                                body:@{
-                                                       @"target": self.reactTag
-                                                       }];
-            [self _release];
-            break;
-        default:
-            //NSLog(@"state %i",state);
-            break;
+    if(_player){
+        VLCMediaPlayerState state = _player.state;
+        switch (state) {
+            case VLCMediaPlayerStatePaused:
+                _paused = YES;
+                //NSLog(@"VLCMediaPlayerStatePaused %i",1);
+                self.onVideoPaused(@{
+                                     @"target": self.reactTag
+                                     });
+                break;
+            case VLCMediaPlayerStateStopped:
+                //NSLog(@"VLCMediaPlayerStateStopped %i",1);
+                self.onVideoStopped(@{
+                                      @"target": self.reactTag
+                                      });
+                break;
+            case VLCMediaPlayerStateBuffering:
+                //NSLog(@"VLCMediaPlayerStateBuffering %i",1);
+                self.onVideoBuffering(@{
+                                        @"target": self.reactTag
+                                        });
+                break;
+            case VLCMediaPlayerStatePlaying:
+                _paused = NO;
+                //NSLog(@"VLCMediaPlayerStatePlaying %i",1);
+                self.onVideoPlaying(@{
+                                      @"target": self.reactTag,
+                                      @"seekable": [NSNumber numberWithBool:[_player isSeekable]],
+                                      @"duration":[NSNumber numberWithInt:[_player.media.length intValue]]
+                                      });
+                break;
+            case VLCMediaPlayerStateEnded:
+                //NSLog(@"VLCMediaPlayerStateEnded %i",1);
+                self.onVideoEnded(@{
+                                    @"target": self.reactTag
+                                    });
+                break;
+            case VLCMediaPlayerStateError:
+                //NSLog(@"VLCMediaPlayerStateError %i",1);
+                self.onVideoError(@{
+                                    @"target": self.reactTag
+                                    });
+                [self _release];
+                break;
+            default:
+                //NSLog(@"state %i",1);
+                break;
+        }
     }
 }
 
 -(void)updateVideoProgress
 {
-
-    int currentTime   = [[_player time] intValue];
-    int remainingTime = [[_player remainingTime] intValue];
-    int duration      = [_player.media.length intValue];
-
-    if( currentTime >= 0 && currentTime < duration) {
-        [_eventDispatcher sendInputEventWithName:@"onVideoProgress"
-                                            body:@{
-                                                   @"target": self.reactTag,
-                                                   @"currentTime": [NSNumber numberWithInt:currentTime],
-                                                   @"remainingTime": [NSNumber numberWithInt:remainingTime],
-                                                   @"duration":[NSNumber numberWithInt:duration],
-                                                   @"position":[NSNumber numberWithFloat:_player.position]
-                                                   }];
+    if(_player){
+        int currentTime   = [[_player time] intValue];
+        int remainingTime = [[_player remainingTime] intValue];
+        int duration      = [_player.media.length intValue];
+        
+        if( currentTime >= 0 && currentTime < duration) {
+            self.onVideoProgress(@{
+                                   @"target": self.reactTag,
+                                   @"currentTime": [NSNumber numberWithInt:currentTime],
+                                   @"remainingTime": [NSNumber numberWithInt:remainingTime],
+                                   @"duration":[NSNumber numberWithInt:duration],
+                                   @"position":[NSNumber numberWithFloat:_player.position]
+                                   });
+        }
     }
 }
 
@@ -219,16 +221,20 @@ static NSString *const playbackRate = @"rate";
 
 - (void)_release
 {
-    [_player pause];
-    [_player stop];
-    _player = nil;
-    _eventDispatcher = nil;
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    if(_player){
+        [_player pause];
+        [_player stop];
+        _player = nil;
+        _eventDispatcher = nil;
+        [[NSNotificationCenter defaultCenter] removeObserver:self];
+    }
 }
+
 
 #pragma mark - Lifecycle
 - (void)removeFromSuperview
 {
+    NSLog(@"removeFromSuperview");
     [self _release];
     [super removeFromSuperview];
 }
